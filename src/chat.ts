@@ -18,6 +18,10 @@ export class Chat {
       ? `Answer me in ${process.env.LANGUAGE},`
       : '';
 
+    if(process.env.CODE_REVIEW_PROMPT) {
+      return process.env.CODE_REVIEW_PROMPT.replace("{language}", answerLanguage).replace("{patch}", patch);
+    }
+
     return `Bellow is the code patch, please help me do a brief code review,${answerLanguage} if any bug risk and improvement suggestion are welcome
     ${patch}
     `;
