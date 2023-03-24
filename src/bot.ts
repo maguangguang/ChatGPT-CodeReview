@@ -40,7 +40,7 @@ export const robot = (app: Probot) => {
   };
 
   app.on(
-    ['pull_request.opened', 'pull_request.synchronize'],
+    ['pull_request.opened', 'pull_request.synchronize', 'push'],
     async (context) => {
       const repo = context.repo();
       const chat = await loadChat(context);
@@ -48,7 +48,59 @@ export const robot = (app: Probot) => {
       if (!chat) {
         return 'no chat';
       }
+    if (['push'].includes(context.name)){
 
+        // @ts-ignore
+        let base = context.payload.before;
+        // @ts-ignore
+        let head = context.payload.after;
+        const data = await context.octokit.repos.compareCommits({
+            owner: repo.owner,
+            repo: repo.repo,
+            base: base,
+            head: head,
+        });
+        let { files: changedFiles, commits } = data.data;
+        if (!changedFiles?.length) {
+            return 'no change';
+        }
+
+        console.time('gpt cost');
+
+        for (let i = 0; i < changedFiles.length; i++) {
+            const file = changedFiles[i];
+            const patch = file.patch || '';
+
+            if(file.status !== 'modified' && file.status !== 'added') {
+                continue;
+            }
+
+            if (!patch || patch.length > MAX_PATCH_COUNT) {
+                continue;
+            }
+            // @ts-ignore
+            const res = await chat?.codeReview(patch);
+
+            if (!!res) {
+                await context.octokit.repos.createCommitComment({
+                    repo: repo.repo,
+                    owner: repo.owner,
+                    commit_sha: commits[commits.length - 1].sha,
+                    path: file.filename,
+                    body: res,
+                    position: patch.split('\n').length - 1,
+                });
+            }
+        }
+
+        console.timeEnd('gpt cost');
+        // @ts-ignore
+        console.info('suceess reviewed', context.payload.after);
+
+        return 'success';
+    }
+
+        // @ts-ignore
       const pull_request = context.payload.pull_request;
 
       if (
@@ -59,16 +111,21 @@ export const robot = (app: Probot) => {
         return 'invalid event paylod';
       }
 
-      const data = await context.octokit.repos.compareCommits({
+        // @ts-ignore
+        let base = context.payload.pull_request.base.sha;
+        // @ts-ignore
+        let head = context.payload.pull_request.head.sha;
+        const data = await context.octokit.repos.compareCommits({
         owner: repo.owner,
         repo: repo.repo,
-        base: context.payload.pull_request.base.sha,
-        head: context.payload.pull_request.head.sha,
+        base: base,
+        head: head,
       });
 
       let { files: changedFiles, commits } = data.data;
 
-      if (context.payload.action === 'synchronize' && commits.length >= 2) {
+      // @ts-ignore
+        if (context.payload.action === 'synchronize' && commits.length >= 2) {
         const {
           data: { files },
         } = await context.octokit.repos.compareCommits({
@@ -101,7 +158,8 @@ export const robot = (app: Probot) => {
         if (!patch || patch.length > MAX_PATCH_COUNT) {
           continue;
         }
-        const res = await chat?.codeReview(patch);
+        // @ts-ignore
+      const res = await chat?.codeReview(patch);
 
         if (!!res) {
           await context.octokit.pulls.createReviewComment({
@@ -117,7 +175,9 @@ export const robot = (app: Probot) => {
       }
 
       console.timeEnd('gpt cost');
-      console.info('suceess reviewed', context.payload.pull_request.html_url);
+
+      // @ts-ignore
+        console.info('suceess reviewed', context.payload.pull_request.html_url);
 
       return 'success';
     }
