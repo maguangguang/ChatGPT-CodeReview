@@ -62,6 +62,7 @@ jobs:
           MODEL:
           top_p: 1
           temperature: 1
+          CODE_REVIEW_PROMPT: 'Bellow is the code patch, please help me do a brief code review, Answer me in  {language} if any bug risk and improvement suggestion are welcome {patch}'
 ```
 
 ## Self-hosting
