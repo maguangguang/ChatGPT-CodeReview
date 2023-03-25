@@ -2,8 +2,6 @@
 
 > A code review robot powered by ChatGPT
 
-Translation Versions: [ENGLISH](./README.md) | [中文简体](./README.zh-CN.md) | [中文繁體](./README.zh-TW.md) | [한국어](./README.ko.md)
-
 ## Usage
 
 ## Install
@@ -31,29 +29,25 @@ example:
 
 ### Using Github Actions
 
-> this is a recommended way as github bot is serving on a humble vps, I can't make sure it's always stable
-
-[actions/chatgpt-codereviewer](https://github.com/marketplace/actions/chatgpt-codereviewer)
-
 1. add the `OPEN_API_KEY` to your github actions secrets
 2. create `.github/workflows/cr.yml` add bellow content
 
 ```yml
 name: Code Review
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: write-all
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  push:
+     branches: [ "master" ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: anc95/ChatGPT-CodeReview@main
+      - uses: xiaoquisme/ChatGPT-CodeReview@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -62,7 +56,13 @@ jobs:
           MODEL:
           top_p: 1
           temperature: 1
-          CODE_REVIEW_PROMPT: 'Bellow is the code patch, please help me do a brief code review, Answer me in  {language} if any bug risk and improvement suggestion are welcome {patch}'
+          CODE_REVIEW_PROMPT: "Bellow is the code patch.
+    Write a detailed review {answerLanguage} of any issues you can find in the form of a table with a row for each issue and the following columns:
+    - Issue type (e.g. bug, style, etc.)
+    - Issue importance (e.g. low, medium, high)
+    - Issue description
+    - Recommended fix
+    {patch}"
 ```
 
 ## Self-hosting
